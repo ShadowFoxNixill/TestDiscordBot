@@ -1,11 +1,16 @@
 using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 using DSharpPlus;
+using DSharpPlus.SlashCommands;
 
 namespace Nixill.Discord
 {
   class TDBMain
   {
+    internal static DiscordClient Discord;
+    internal static DiscordSlashClient Commands;
+
     static void Main(string[] args)
     {
       MainAsync().GetAwaiter().GetResult();
@@ -13,19 +18,28 @@ namespace Nixill.Discord
 
     static async Task MainAsync()
     {
-      var discord = new DiscordClient(new DiscordConfiguration()
+      string botToken = File.ReadAllLines("token")[0];
+
+      Discord = new DiscordClient(new DiscordConfiguration()
       {
-        Token = File.ReadAllLines("token")[0],
+        Token = botToken,
         TokenType = TokenType.Bot
       });
 
-      discord.MessageCreated += async (s, e) =>
+      Commands = new DiscordSlashClient(new DiscordSlashConfiguration()
       {
-        if (e.Message.Content.ToLower().StartsWith("ping"))
-          await e.Message.RespondAsync("pong!");
-      };
+        Token = botToken,
+        Client = Discord,
+        Logger = Discord.Logger,
+      });
 
-      await discord.ConnectAsync();
+      Discord.InteractionCreated += Commands.HandleGatewayEvent;
+
+      await Discord.ConnectAsync();
+
+      Commands.RegisterCommands(Assembly.GetExecutingAssembly());
+
+      await Commands.StartAsync();
       await Task.Delay(-1);
     }
   }
